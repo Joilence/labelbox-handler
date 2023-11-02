@@ -1,0 +1,5 @@
+labelbox[data]~=3.54.1
+requests~=2.31.0
+tqdm~=4.66.1
+scikit-learn~=1.3.2
+git+https://github.com/Joilence/labelformat.git@2b75a74ea6578aa38e1ea0049dd1b33784edb81c
