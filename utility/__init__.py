@@ -1,10 +1,13 @@
 import json
 import os
+from copy import deepcopy
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
+from typing import Tuple, List, Union
 
 import labelbox as lb
 import requests
+from sklearn.model_selection import train_test_split
 from tqdm.auto import tqdm
 
 
@@ -42,7 +45,7 @@ def get_ontology(client: lb.Client, project_id: str):
     return mapped_ontology, thing_classes
 
 
-def download_files(filemap: tuple[str, str]) -> str:
+def download_files(filemap: Tuple[str, str]) -> str:
     """Generic data download function
     :param filemap: tuple of file path and url
     """
@@ -58,9 +61,9 @@ def download_files(filemap: tuple[str, str]) -> str:
 
 
 def download_images_from_lbv2(
-        labels: list[dict],
+        labels: List[dict],
         filename_key: str,
-        dest_dir: Path | str,
+        dest_dir: Union[str, Path],
         n_threads: int = 8,
         override: bool = False
 ):
@@ -97,7 +100,7 @@ def download_images_from_lbv2(
         pass
 
 
-def load_lb_labels_json(filepath: str | Path):
+def load_lb_labels_json(filepath: Union[str, Path]):
     """Load labels from a LabelBox json file, with each line as a json object
     :param filepath: path to json file
     :return: list of labels
@@ -108,10 +111,138 @@ def load_lb_labels_json(filepath: str | Path):
     return labels
 
 
-def save_lb_labels_json(filepath: str | Path, labels: list[dict]):
+def save_lb_labels_json(filepath: Union[str, Path], labels: List[dict]):
     """ Save labels to a LabelBox json file, with each line as a json object
     :param filepath: path to json file
+    :param labels: list of LabelBox v2 labels
     """
     text = '\n'.join(json.dumps(label) for label in labels)
     with open(filepath, 'w') as file:
         file.write(text)
+
+
+def cls_stat_in_labels(labels: List[dict], cls: Union[List[str], str], project_id: str):
+    """print class statistics in LabelBox v2 labels
+    :param labels: a list of LabelBox v2 labels
+    :param cls: a list of classes to count
+    :param project_id: project id of the annotations
+    """
+    if isinstance(cls, str):
+        cls = [cls]
+    elif not cls:
+        return labels
+
+    cls_stat = {c: 0 for c in cls}
+
+    for label in labels:
+        assert project_id in label['projects'], f"project_id {project_id} not in label"
+        annotations = label['projects'][project_id]['labels'][0]['annotations']
+        for obj in annotations['objects']:
+            if obj['name'] in cls:
+                cls_stat[obj['name']] += 1
+
+    print(cls_stat)
+
+
+def remove_cls_in_labels(labels: List[dict], cls: List[str] | str, project_id: str) -> List[dict]:
+    """remove annotation of classes in LabelBox v2 labels
+    :param labels: a list of LabelBox v2 labels
+    :param cls: a list of classes to remove
+    :param project_id: project id of the annotations
+    :return: a new list of labels with classes removed
+    """
+    if isinstance(cls, str):
+        cls = [cls]
+    elif not cls:
+        return labels
+    return [_remove_cls_in_label(label, cls, project_id) for label in labels]
+
+
+def _remove_cls_in_label(label: dict, cls: List[str], project_id: str) -> dict:
+    """remove annotation of classes in a LabelBox v2 label
+    :param label: a LabelBox v2 label
+    :param cls: a list of classes to remove
+    :param project_id: project id of the annotations
+    :return: a new label with classes removed
+    """
+    assert project_id in label['projects'], f"project_id {project_id} not in label"
+
+    label_copy = deepcopy(label)
+    annotations = label_copy['projects'][project_id]['labels'][0]['annotations']
+    annotations['objects'] = [obj for obj in annotations['objects'] if obj['name'] not in cls]
+    return label_copy
+
+
+def replace_cls_in_labels(labels: List[dict], cls_map: dict, project_id: str) -> List[dict]:
+    """replace annotation of classes in LabelBox v2 labels
+    :param labels: a list of LabelBox v2 labels
+    :param cls_map: a map from old class to new class
+    :param project_id: project id of the annotations
+    :return: a new list of labels with classes replaced
+    """
+    return [_replace_cls_in_label(label, cls_map, project_id) for label in labels]
+
+
+def _replace_cls_in_label(label: dict, cls_map: dict, project_id: str) -> dict:
+    """replace annotation of classes in a LabelBox v2 label
+    :param label: a LabelBox v2 label
+    :param cls_map: a map from old class to new class
+    :param project_id: project id of the annotations
+    :return: a new label with classes replaced
+    """
+    assert project_id in label['projects'], f"project_id {project_id} not in label"
+
+    label_copy = deepcopy(label)
+    annotations = label_copy['projects'][project_id]['labels'][0]['annotations']
+    for obj in annotations['objects']:
+        if obj['name'] in cls_map:
+            obj['name'] = cls_map[obj['name']]
+    return label_copy
+
+
+def remove_empty_labels(labels: List[dict], project_id: str) -> List[dict]:
+    """remove empty labels in LabelBox v2 labels
+    :param labels: a list of LabelBox v2 labels
+    :param project_id: project id of the annotations
+    :return: a new list of labels with empty labels removed
+    """
+    return [label for label in labels if not _is_label_empty(label, project_id)]
+
+
+def _is_label_empty(label: dict, project_id: str) -> bool:
+    """check if a LabelBox v2 label is empty
+    :param label: a LabelBox v2 label
+    :param project_id: project id of the annotations
+    :return: True if the label is empty, False otherwise
+    """
+    assert project_id in label['projects'], f"project_id {project_id} not in label"
+
+    annotations = label['projects'][project_id]['labels'][0]['annotations']
+    return len(annotations['objects']) == 0
+
+
+def split_lbv2_labels(
+        labels: List[dict],
+        labels_name: str,
+        dest_dir: Union[str, Path],
+        override: bool = False,
+        random_seed: int = 42
+):
+    """ Split labels into train, val, test sets
+    :param labels: list of labelbox labels
+    :param labels_name: name of the labels
+    :param dest_dir: destination directory
+    :param override: override existing files
+    :param random_seed: random seed
+    :return: None"""
+
+    dest_dir = Path(dest_dir)
+    dest_dir.mkdir(parents=True, exist_ok=override)
+
+    # try to split into train, val, test, 0.7, 0.15, 0.15
+    train, test = train_test_split(labels, test_size=15 / 100, random_state=random_seed)
+    train, val = train_test_split(train, test_size=15 / 85, random_state=random_seed)
+    print(f"{labels_name}: Train: {len(train)}, Val: {len(val)}, Test: {len(test)}")
+
+    for split, split_labels in zip(['train', 'val', 'test'], [train, val, test]):
+        save_lb_labels_json(dest_dir / f"{labels_name}_{split}.json", split_labels)
