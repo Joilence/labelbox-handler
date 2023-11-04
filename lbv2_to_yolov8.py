@@ -28,10 +28,11 @@ print(f"Fetching classes from ontology of \"{project.name}\" ({PROJECT_ID})...")
 _, classes = get_ontology(client, PROJECT_ID)
 print(f"Classes fetched: {classes}")
 
-# set up labelbox labels json file paths
-lb_labels_json_train = f"labelbox_labels/{project.name}/labels_train.json"
-lb_labels_json_val = f"labelbox_labels/{project.name}/labels_val.json"
-lb_labels_json_test = f"labelbox_labels/{project.name}/labels_test.json"
+labels_name = 'labels'
+split_path_map = {
+    split: f"labelbox_labels/{project.name}/{labels_name}_{split}.json"
+    for split in ["train", "val", "test"]
+}
 
 # Create a YOLOv8 compatible label file
 save_dir = "yolov8_labels"
@@ -45,8 +46,7 @@ data_dicts = {
     "path": ".",
 }
 
-for split, labels_json in zip(["train", "val", "test"],
-                              [lb_labels_json_train, lb_labels_json_val, lb_labels_json_test]):
+for split, labels_path in split_path_map.items():
     print(f"Processing {split} split...")
 
     # set up directories
@@ -56,7 +56,7 @@ for split, labels_json in zip(["train", "val", "test"],
 
     # load labelbox labels json
     label_input = LabelboxObjectDetectionInput(
-        input_file=Path(labels_json),
+        input_file=Path(labels_path),
         category_names=','.join(classes),
     )
 
@@ -75,7 +75,7 @@ for split, labels_json in zip(["train", "val", "test"],
 
     # download images
     download_images_from_lbv2(
-        labels=load_lb_labels_json(labels_json),
+        labels=load_lb_labels_json(labels_path),
         filename_key=filename_key,
         dest_dir=images_dir,
         override=True
