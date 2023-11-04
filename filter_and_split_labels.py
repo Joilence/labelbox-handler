@@ -10,7 +10,9 @@ from utility import (
     replace_cls_in_labels,
     remove_empty_labels,
     get_ontology,
-    load_lb_labels_json, split_lbv2_labels,
+    load_lb_labels_json,
+    split_lbv2_labels,
+    labelboxv2_to_yolov8,
 )
 
 labels_path = 'labelbox_labels/Detection_2023/labels.json'
@@ -57,8 +59,23 @@ sc_labels = replace_cls_in_labels(
 sc_labels = remove_empty_labels(sc_labels, PROJECT_ID)
 cls_stat_in_labels(sc_labels, classes + ['bb'], PROJECT_ID)
 
-for labels, labels_name in zip([mc_labels, gender_labels, sc_labels], ['mc_labels', 'gd_labels', 'sc_labels']):
+for labels, labels_name, selected_cls in zip(
+        [mc_labels, gender_labels, sc_labels],
+        ['mc_labels', 'gd_labels', 'sc_labels'],
+        [
+            # mutli-class
+            [cls for cls in classes if cls not in ['territory', 'unknown']],
+            # gender classes
+            ['bbmale', 'bbfemale'],
+            # single-class
+            ['bb']
+        ]
+):
     split_lbv2_labels(labels, labels_name, f'labelbox_labels/Detection_2023/{labels_name}', True)
 
+    split_path_map = {
+        split: f"labelbox_labels/Detection_2023/{labels_name}/{labels_name}_{split}.json"
+        for split in ["train", "val", "test"]
+    }
 
-
+    labelboxv2_to_yolov8(split_path_map, labels_name, selected_cls, 'id', True)

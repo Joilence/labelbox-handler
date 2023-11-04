@@ -3,10 +3,13 @@ import os
 from copy import deepcopy
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
-from typing import Tuple, List, Union
+from typing import Tuple, List, Union, Dict
 
 import labelbox as lb
 import requests
+import yaml
+from labelformat.formats import LabelboxObjectDetectionInput
+from labelformat.model.bounding_box import BoundingBoxFormat
 from sklearn.model_selection import train_test_split
 from tqdm.auto import tqdm
 
@@ -246,3 +249,69 @@ def split_lbv2_labels(
 
     for split, split_labels in zip(['train', 'val', 'test'], [train, val, test]):
         save_lb_labels_json(dest_dir / f"{labels_name}_{split}.json", split_labels)
+
+
+def labelboxv2_to_yolov8(
+        split_path_map: Dict[str, str],
+        dataset_name: str,
+        classes: List[str],
+        filename_key: str,
+        override: bool = False,
+):
+    """ convert LabelBox v2 labels to YOLOv8 labels
+    :param split_path_map: dict of split name to labelbox v2 labels path
+    :param dataset_name: name of dataset
+    :param classes: list of classes
+    :param filename_key: key in data_rows to use as image/label file name
+    :param override: override existing files
+    """
+    # Create a YOLOv8 compatible label file
+    save_dir = "yolov8_labels"
+    dest_dir = Path(save_dir) / dataset_name
+    dest_dir.mkdir(parents=True, exist_ok=override)
+
+    # set up data dicts for dataset yaml file
+    data_dicts = {
+        "names": dict(enumerate(classes)),
+        "nc": len(classes),
+        "path": ".",
+    }
+
+    for split, labels_path in split_path_map.items():
+        print(f"Processing {split} split...")
+
+        # set up directories
+        labels_dir = dest_dir / split / "labels"
+        data_dicts[split] = f"{split}/images"
+        images_dir = dest_dir / f"{split}/images"
+
+        # load labelbox labels json
+        label_input = LabelboxObjectDetectionInput(
+            input_file=Path(labels_path),
+            category_names=','.join(classes),
+        )
+
+        # convert labelbox labels json into yolov8 label files
+        for label in label_input.get_labels(filename_key=filename_key):
+            label_path = (labels_dir / label.image.filename).with_suffix(".txt")
+            label_path.parent.mkdir(parents=True, exist_ok=override)
+            with label_path.open("w") as file:
+                for obj in label.objects:
+                    cx, cy, w, h = obj.box.to_format(format=BoundingBoxFormat.CXCYWH)
+                    rcx = cx / label.image.width
+                    rcy = cy / label.image.height
+                    rw = w / label.image.width
+                    rh = h / label.image.height
+                    file.write(f"{obj.category.id} {rcx} {rcy} {rw} {rh}\n")
+
+        # download images
+        download_images_from_lbv2(
+            labels=load_lb_labels_json(labels_path),
+            filename_key=filename_key,
+            dest_dir=images_dir,
+            override=True
+        )
+
+    # save data dicts to yaml
+    with open(Path(dest_dir) / f"{dataset_name}.yaml", "w") as f:
+        yaml.dump(data_dicts, f)
