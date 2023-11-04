@@ -4,9 +4,8 @@ from pathlib import Path
 
 import labelbox as lb
 import yaml
-from sklearn.model_selection import train_test_split
 
-from utility import save_lb_labels_json
+from utility import save_lb_labels_json, split_lbv2_labels
 
 # arguments
 override = True
@@ -37,13 +36,5 @@ else:
     labels = project_export_task.result
     save_lb_labels_json(dest_dir / "labels.json", labels)
     print(f"Saved labels to {dest_dir / 'labels.json'}")
-
-    # try to split into train, val, test, 0.7, 0.15, 0.15
-    random_seed = 42
-    train, test = train_test_split(labels, test_size=15 / 100, random_state=random_seed)
-    train, val = train_test_split(train, test_size=15 / 85, random_state=random_seed)
-    print(f"Train: {len(train)}, Val: {len(val)}, Test: {len(test)}")
-
-    save_lb_labels_json(dest_dir / "labels_train.json", train)
-    save_lb_labels_json(dest_dir / "labels_val.json", val)
-    save_lb_labels_json(dest_dir / "labels_test.json", test)
+    # split and save labels
+    split_lbv2_labels(labels, project.name, dest_dir, override)
