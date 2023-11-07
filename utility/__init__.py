@@ -147,7 +147,7 @@ def cls_stat_in_labels(labels: List[dict], cls: Union[List[str], str], project_i
     print(cls_stat)
 
 
-def remove_cls_in_labels(labels: List[dict], cls: List[str] | str, project_id: str) -> List[dict]:
+def remove_cls_in_labels(labels: List[dict], cls: Union[List[str], str], project_id: str) -> List[dict]:
     """remove annotation of classes in LabelBox v2 labels
     :param labels: a list of LabelBox v2 labels
     :param cls: a list of classes to remove

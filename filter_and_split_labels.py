@@ -71,6 +71,7 @@ for labels, labels_name, selected_cls in zip(
             ['bb']
         ]
 ):
+    print(f"Splitting {labels_name}...")
     split_lbv2_labels(labels, labels_name, f'labelbox_labels/Detection_2023/{labels_name}', True)
 
     split_path_map = {
