@@ -124,11 +124,12 @@ def save_lb_labels_json(filepath: Union[str, Path], labels: List[dict]):
         file.write(text)
 
 
-def cls_stat_in_labels(labels: List[dict], cls: Union[List[str], str], project_id: str):
+def count_cls_in_labels(labels: List[dict], cls: Union[List[str], str], project_id: str) -> dict:
     """print class statistics in LabelBox v2 labels
     :param labels: a list of LabelBox v2 labels
     :param cls: a list of classes to count
     :param project_id: project id of the annotations
+    :return: a dict of class: counts
     """
     if isinstance(cls, str):
         cls = [cls]
@@ -144,7 +145,7 @@ def cls_stat_in_labels(labels: List[dict], cls: Union[List[str], str], project_i
             if obj['name'] in cls:
                 cls_stat[obj['name']] += 1
 
-    print(cls_stat)
+    return cls_stat
 
 
 def remove_cls_in_labels(labels: List[dict], cls: Union[List[str], str], project_id: str) -> List[dict]:

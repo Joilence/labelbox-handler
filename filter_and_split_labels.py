@@ -5,7 +5,7 @@ import labelbox as lb
 import yaml
 
 from utility import (
-    cls_stat_in_labels,
+    count_cls_in_labels,
     remove_cls_in_labels,
     replace_cls_in_labels,
     remove_empty_labels,
@@ -39,7 +39,7 @@ mc_labels = remove_cls_in_labels(
     project_id=PROJECT_ID
 )
 mc_labels = remove_empty_labels(mc_labels, PROJECT_ID)
-cls_stat_in_labels(mc_labels, classes + ['bb'], PROJECT_ID)
+print(count_cls_in_labels(mc_labels, classes + ['bb'], PROJECT_ID))
 
 # making gender-only class labels
 gender_cls = ['bbmale', 'bbfemale']
@@ -49,7 +49,7 @@ gender_labels = remove_cls_in_labels(
     project_id=PROJECT_ID
 )
 gender_labels = remove_empty_labels(gender_labels, PROJECT_ID)
-cls_stat_in_labels(gender_labels, classes + ['bb'], PROJECT_ID)
+print(count_cls_in_labels(gender_labels, classes + ['bb'], PROJECT_ID))
 
 # making single class labels
 sc_labels = replace_cls_in_labels(
@@ -57,7 +57,7 @@ sc_labels = replace_cls_in_labels(
     cls_map={'bbmale': 'bb', 'bbfemale': 'bb'},
     project_id=PROJECT_ID)
 sc_labels = remove_empty_labels(sc_labels, PROJECT_ID)
-cls_stat_in_labels(sc_labels, classes + ['bb'], PROJECT_ID)
+print(count_cls_in_labels(sc_labels, classes + ['bb'], PROJECT_ID))
 
 for labels, labels_name, selected_cls in zip(
         [mc_labels, gender_labels, sc_labels],
