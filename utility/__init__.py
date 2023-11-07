@@ -227,29 +227,31 @@ def _is_label_empty(label: dict, project_id: str) -> bool:
 
 def split_lbv2_labels(
         labels: List[dict],
-        labels_name: str,
-        dest_dir: Union[str, Path],
-        override: bool = False,
-        random_seed: int = 42
-):
+        train_size: float = 0.7,
+        val_size: float = 0.15,
+        test_size: float = 0.15,
+        random_seed: int = 42,
+) -> Tuple[List[dict], List[dict], List[dict]]:
     """ Split labels into train, val, test sets
     :param labels: list of labelbox labels
-    :param labels_name: name of the labels
-    :param dest_dir: destination directory
-    :param override: override existing files
+    :param train_size: train set size
+    :param val_size: val set size
+    :param test_size: test set size
     :param random_seed: random seed
-    :return: None"""
+    :return: train, val, test sets
+    """
 
-    dest_dir = Path(dest_dir)
-    dest_dir.mkdir(parents=True, exist_ok=override)
+    # normalize train, val, test sizes
+    total_size = train_size + val_size + test_size
+    train_size /= total_size
+    val_size /= total_size
+    test_size /= total_size
 
     # try to split into train, val, test, 0.7, 0.15, 0.15
-    train, test = train_test_split(labels, test_size=15 / 100, random_state=random_seed)
-    train, val = train_test_split(train, test_size=15 / 85, random_state=random_seed)
-    print(f"{labels_name}: Train: {len(train)}, Val: {len(val)}, Test: {len(test)}")
+    train, test = train_test_split(labels, test_size=test_size / 1, random_state=random_seed)
+    train, val = train_test_split(train, test_size=val_size / (1 - test_size), random_state=random_seed)
 
-    for split, split_labels in zip(['train', 'val', 'test'], [train, val, test]):
-        save_lb_labels_json(dest_dir / f"{labels_name}_{split}.json", split_labels)
+    return train, val, test
 
 
 def labelboxv2_to_yolov8(

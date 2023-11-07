@@ -1,3 +1,11 @@
+"""
+This script trys to manipulate the labelbox labels based on different classes to make it suitable for training.
+It generates 3 different types of labels:
+- multi-class labels: labels with all classes except 'territory' and 'unknown'
+- gender-only class labels: labels with only 'bbmale' and 'bbfemale'
+- single-class labels: labels with only 'bb'
+"""
+
 import os
 from pathlib import Path
 
@@ -13,6 +21,7 @@ from utility import (
     load_lb_labels_json,
     split_lbv2_labels,
     labelboxv2_to_yolov8,
+    save_lb_labels_json,
 )
 
 labels_path = 'labelbox_labels/Detection_2023/labels.json'
@@ -72,7 +81,11 @@ for labels, labels_name, selected_cls in zip(
         ]
 ):
     print(f"Splitting {labels_name}...")
-    split_lbv2_labels(labels, labels_name, f'labelbox_labels/Detection_2023/{labels_name}', True)
+    train, val, test = split_lbv2_labels(labels)
+    print(f"{labels_name}: Train: {len(train)}, Val: {len(val)}, Test: {len(test)}")
+
+    for split, split_labels in zip(['train', 'val', 'test'], [train, val, test]):
+        save_lb_labels_json(f'labelbox_labels/Detection_2023/{labels_name}/{labels_name}_{split}.json', split_labels)
 
     split_path_map = {
         split: f"labelbox_labels/Detection_2023/{labels_name}/{labels_name}_{split}.json"
