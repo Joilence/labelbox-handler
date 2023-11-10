@@ -243,6 +243,13 @@ def train_val_test_split(
 
     train_size, val_size, test_size = get_normal_split_size(train_size, val_size, test_size)
 
+    # deal with the condition when there is only one or two labels
+    if len(labels) == 1:
+        return labels, [], []
+    elif len(labels) == 2:
+        train, test = train_test_split(labels, test_size=test_size / 1, random_state=random_seed)
+        return train, [], test
+
     # try to split into train, val, test, 0.7, 0.15, 0.15
     train, test = train_test_split(labels, test_size=test_size / 1, random_state=random_seed)
     train, val = train_test_split(train, test_size=val_size / (1 - test_size), random_state=random_seed)
