@@ -5,7 +5,7 @@ from pathlib import Path
 import labelbox as lb
 import yaml
 
-from utility import save_lb_labels_json, split_lbv2_labels
+from utility import save_lb_labels_json, train_val_test_split
 
 # arguments
 override = True
@@ -37,4 +37,4 @@ else:
     save_lb_labels_json(dest_dir / "labels.json", labels)
     print(f"Saved labels to {dest_dir / 'labels.json'}")
     # split and save labels
-    split_lbv2_labels(labels, project.name, dest_dir, override)
+    train_val_test_split(labels, project.name, dest_dir, override)

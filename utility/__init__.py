@@ -3,7 +3,7 @@ import os
 from copy import deepcopy
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
-from typing import Tuple, List, Union, Dict
+from typing import List, Dict, Union, Tuple
 
 import labelbox as lb
 import requests
@@ -225,13 +225,13 @@ def _is_label_empty(label: dict, project_id: str) -> bool:
     return len(annotations['objects']) == 0
 
 
-def split_lbv2_labels(
-        labels: List[dict],
+def train_val_test_split(
+        labels: List,
         train_size: float = 0.7,
         val_size: float = 0.15,
         test_size: float = 0.15,
         random_seed: int = 42,
-) -> Tuple[List[dict], List[dict], List[dict]]:
+) -> Tuple[List, List, List]:
     """ Split labels into train, val, test sets
     :param labels: list of labelbox labels
     :param train_size: train set size
@@ -241,11 +241,7 @@ def split_lbv2_labels(
     :return: train, val, test sets
     """
 
-    # normalize train, val, test sizes
-    total_size = train_size + val_size + test_size
-    train_size /= total_size
-    val_size /= total_size
-    test_size /= total_size
+    train_size, val_size, test_size = get_normal_split_size(train_size, val_size, test_size)
 
     # try to split into train, val, test, 0.7, 0.15, 0.15
     train, test = train_test_split(labels, test_size=test_size / 1, random_state=random_seed)
@@ -318,3 +314,46 @@ def labelboxv2_to_yolov8(
     # save data dicts to yaml
     with open(Path(dest_dir) / f"{dataset_name}.yaml", "w") as f:
         yaml.dump(data_dicts, f)
+
+
+def _lbv2_label_has_cls(label: Dict, cls: str, project_id: str) -> bool:
+    """return True if label contains class cls"""
+    for ann in label['projects'][project_id]['labels'][0]['annotations']['objects']:
+        if ann['name'] == cls:
+            return True
+    return False
+
+
+def lbv2_labels_with_cls(labels: List[Dict], cls: str, project_id: str) -> Tuple[List[Dict], List[Dict]]:
+    """return LabelBox v2 labels with class cls and the rest of other labels
+    :param labels: LabelBox v2 labels in list of dict
+    :param cls: class
+    :param project_id: project id where annotations are from
+    :return: (labels_with_cls, labels_without_cls)
+    """
+    labels_with_cls = []
+    labels_without_cls = []
+    for label in labels:
+        if _lbv2_label_has_cls(label, cls, project_id):
+            labels_with_cls.append(label)
+        else:
+            labels_without_cls.append(label)
+    return labels_with_cls, labels_without_cls
+
+
+def get_normal_split_size(
+        train_size: Union[float, int],
+        val_size: Union[float, int],
+        test_size: Union[float, int]
+) -> Tuple[float, float, float]:
+    """Normalize split size to sum to 1
+    :param train_size: train size
+    :param val_size: val size
+    :param test_size: test size
+    :return: (train_size, val_size, test_size)
+    """
+    split_size = train_size + val_size + test_size
+    train_size /= split_size
+    val_size /= split_size
+    test_size /= split_size
+    return train_size, val_size, test_size
