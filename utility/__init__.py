@@ -1,3 +1,7 @@
+"""
+Utility functions for LabelBox V2 API
+"""
+
 import json
 import os
 from copy import deepcopy
@@ -325,10 +329,10 @@ def labelboxv2_to_yolov8(
 
 def _lbv2_label_has_cls(label: Dict, cls: str, project_id: str) -> bool:
     """return True if label contains class cls"""
-    for ann in label['projects'][project_id]['labels'][0]['annotations']['objects']:
-        if ann['name'] == cls:
-            return True
-    return False
+    return any(
+        ann['name'] == cls
+        for ann in label['projects'][project_id]['labels'][0]['annotations']['objects']
+    )
 
 
 def lbv2_labels_with_cls(labels: List[Dict], cls: str, project_id: str) -> Tuple[List[Dict], List[Dict]]:
