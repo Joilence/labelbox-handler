@@ -120,6 +120,7 @@ for labels, labels_name, selected_cls in zip(
     for cls in selected_cls:
         if cls == selected_cls[-1]:  # no need to check labels of the last
             labels_with_cls = labels_remained
+            labels_remained = []
         else:
             labels_with_cls, labels_remained = lbv2_labels_with_cls(labels=labels_remained, cls=cls,
                                                                     project_id=PROJECT_ID)
@@ -135,7 +136,6 @@ for labels, labels_name, selected_cls in zip(
 
     # save splitted labels in LabelBox v2 format
     labels_dir = src_labels_path.parent / labels_name
-    labels_dir.mkdir(parents=True, exist_ok=override)
     split_path_map = {}  # for converting to yolov8 format
     for split, split_labels in zip(['train', 'val', 'test'], [train, val, test]):
         split_labels_path = labels_dir / f"{labels_name}_{split}.json"
