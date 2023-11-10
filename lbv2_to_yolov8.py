@@ -1,35 +1,33 @@
 import argparse
-import os
 from pathlib import Path
 
-import labelbox as lb
 import yaml
 
-from utility import get_ontology, labelboxv2_to_yolov8
+from utility import labelboxv2_to_yolov8, load_lb_labels_json, count_cls_in_labels
 
 parser = argparse.ArgumentParser()
+parser.add_argument("--label_dir", type=str, required=True,
+                    help="dir where labelbox labels json files are stored")
 parser.add_argument("-k", "--fn_key", type=str, default="id", choices=["global_key", "external_id", "id"],
                     help="filename key, default to \"id\"")
 args = parser.parse_args()
+label_dir = Path(args.label_dir)
 filename_key = args.fn_key
 override = True  # override existing files except for images
 
 # load labelbox config
 lb_cfg = yaml.load(Path("labelbox_config.yaml").read_text(), Loader=yaml.FullLoader)
 PROJECT_ID = lb_cfg["PROJECT_ID"]
-api_key = lb_cfg["LABELBOX_API_KEY"] or os.getenv("LABELBOX_API_KEY")
 
-# get classes from ontology
-client = lb.Client(api_key=api_key)
-project = client.get_project(PROJECT_ID)
-print(f"Fetching classes from ontology of \"{project.name}\" ({PROJECT_ID})...")
-_, classes = get_ontology(client, PROJECT_ID)
-print(f"Classes fetched: {classes}")
+# load labels
+labels = load_lb_labels_json(label_dir / f"{label_dir.stem}.json")
+classes = list(count_cls_in_labels(labels=labels, project_id=PROJECT_ID).keys())
+print("Classes in labels: ", classes)
 
-labels_name = 'labels'
+label_name = label_dir.stem
 split_path_map = {
-    split: f"labelbox_labels/{project.name}/{labels_name}_{split}.json"
+    split: label_dir / f"{label_name}_{split}.json"
     for split in ["train", "val", "test"]
 }
 
-labelboxv2_to_yolov8(split_path_map, project.name, classes, filename_key, True)
+labelboxv2_to_yolov8(split_path_map, label_name, classes, filename_key, True)
