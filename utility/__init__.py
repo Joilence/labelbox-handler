@@ -321,6 +321,7 @@ def labelboxv2_to_yolov8(
             dest_dir=images_dir,
             override=True
         )
+        # TODO: cache to prevent downloading same images multiple times
 
     # save data dicts to yaml
     with open(Path(dest_dir) / f"{dataset_name}.yaml", "w") as f:
