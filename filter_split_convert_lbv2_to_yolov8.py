@@ -81,8 +81,11 @@ sc_labels = replace_cls_in_labels(
     project_id=PROJECT_ID)
 print('sc_labels: ', count_cls_in_labels(sc_labels, PROJECT_ID, classes + ['bb']))
 
+# save altered ontology labels
 for labels, labels_name in zip([mc_labels, gender_labels, sc_labels], ['mc_dtc2023', 'gd_dtc2023', 'sc_dtc2023']):
-    save_json_file_path = src_labels_path.parent / f'{labels_name}/{labels_name}.json'
+    labels_save_dir = src_labels_path.parent / labels_name
+    labels_save_dir.mkdir(parents=True, exist_ok=override)
+    save_json_file_path = labels_save_dir / f'{labels_name}.json'
     save_lb_labels_json(save_json_file_path, labels)
 
 ########################################################################################################################
@@ -103,17 +106,24 @@ for labels, labels_name, selected_cls in zip(
             # single-class
             ['bb']
         ]
-):
+):  # TODO: decouple ontology manipulation, splitting, and conversion to yolov8 format
 
-    print(f"Splitting {labels_name}...")
+    print(f"Splitting '{labels_name}' with {len(labels)} labels.")
 
+    # sort classes from least to most
     selected_cls = sorted(selected_cls,
                           key=lambda x: count_cls_in_labels(labels=labels, cls=[x], project_id=PROJECT_ID)[x])
-    rest_of_labels = labels
-    train, val, test = [], [], []
 
+    # split labels within each class from least to most, ensure each class has at least one label in each split
+    labels_remained = labels
+    train, val, test = [], [], []
     for cls in selected_cls:
-        labels_with_cls, rest_of_labels = lbv2_labels_with_cls(labels=rest_of_labels, cls=cls, project_id=PROJECT_ID)
+        if cls == selected_cls[-1]:  # no need to check labels of the last
+            labels_with_cls = labels_remained
+        else:
+            labels_with_cls, labels_remained = lbv2_labels_with_cls(labels=labels_remained, cls=cls,
+                                                                    project_id=PROJECT_ID)
+        print(f"- Splitting {len(labels_with_cls)} labels with '{cls}', {len(labels_remained)} labels remaining.")
         _train, _val, _test = train_val_test_split(labels=labels_with_cls,
                                                    train_size=0.7, val_size=0.15, test_size=0.15,
                                                    random_seed=42)
@@ -121,8 +131,9 @@ for labels, labels_name, selected_cls in zip(
         val.extend(_val)
         test.extend(_test)
 
-    print(f"{labels_name}: Train: {len(train)}, Val: {len(val)}, Test: {len(test)}")
+    print(f"Splitted {labels_name}: Train: {len(train)}, Val: {len(val)}, Test: {len(test)}")
 
+    # save splitted labels in LabelBox v2 format
     labels_dir = src_labels_path.parent / labels_name
     labels_dir.mkdir(parents=True, exist_ok=override)
     split_path_map = {}  # for converting to yolov8 format
@@ -131,4 +142,5 @@ for labels, labels_name, selected_cls in zip(
         split_path_map[split] = split_labels_path
         save_lb_labels_json(split_labels_path, split_labels)
 
+    # convert to yolov8 format
     labelboxv2_to_yolov8(split_path_map, labels_name, selected_cls, 'id', True)
