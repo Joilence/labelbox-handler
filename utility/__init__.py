@@ -124,26 +124,26 @@ def save_lb_labels_json(filepath: Union[str, Path], labels: List[dict]):
         file.write(text)
 
 
-def count_cls_in_labels(labels: List[dict], cls: Union[List[str], str], project_id: str) -> dict:
+def count_cls_in_labels(labels: List[dict], project_id: str, cls: Union[List[str], str] = None) -> dict:
     """print class statistics in LabelBox v2 labels
     :param labels: a list of LabelBox v2 labels
-    :param cls: a list of classes to count
+    :param cls: a list of classes to count, if none, count all classes
     :param project_id: project id of the annotations
     :return: a dict of class: counts
     """
-    if isinstance(cls, str):
-        cls = [cls]
-    elif not cls:
-        return labels
 
-    cls_stat = {c: 0 for c in cls}
+    cls_stat = {}
 
     for label in labels:
         assert project_id in label['projects'], f"project_id {project_id} not in label"
         annotations = label['projects'][project_id]['labels'][0]['annotations']
         for obj in annotations['objects']:
-            if obj['name'] in cls:
-                cls_stat[obj['name']] += 1
+            cls_stat[obj['name']] = cls_stat.get(obj['name'], 0) + 1
+
+    if cls:
+        if isinstance(cls, str):
+            cls = [cls]
+        cls_stat = {k: v for k, v in cls_stat.items() if k in cls}
 
     return cls_stat
 
