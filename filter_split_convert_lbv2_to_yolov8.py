@@ -132,7 +132,10 @@ for labels, labels_name, selected_cls in zip(
         val.extend(_val)
         test.extend(_test)
 
-    print(f"Splitted {labels_name}: Train: {len(train)}, Val: {len(val)}, Test: {len(test)}")
+    print(f"Splitted {labels_name}\n"
+          f"Train set: {len(train)} images, {count_cls_in_labels(train, project_id=PROJECT_ID)}\n"
+          f"Validation set: {len(val)} images, {count_cls_in_labels(val, project_id=PROJECT_ID)}\n"
+          f"Test set: {len(test)} images, {count_cls_in_labels(test, project_id=PROJECT_ID)}")
 
     # save splitted labels in LabelBox v2 format
     labels_dir = src_labels_path.parent / labels_name

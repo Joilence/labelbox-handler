@@ -103,7 +103,8 @@ def download_images_from_lbv2(
         for label in labels
     ]
     results = ThreadPool(n_threads).imap_unordered(download_files, fp_url_maps)
-    for _ in tqdm(results, desc=f"Downloading images to {dest_dir}", total=len(fp_url_maps)):
+    tqdm.write(f"Downloading images to {dest_dir}")
+    for _ in tqdm(results, total=len(fp_url_maps), bar_format='{l_bar}{bar:10}{r_bar}'):
         pass
 
 
